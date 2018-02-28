@@ -1,5 +1,5 @@
 CLIENT=ipk-client
-SERVER=server
+SERVER=ipk-server
 
 CC=gcc
 CFLAGS=-Wall -pedantic -lm
