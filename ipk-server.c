@@ -14,34 +14,63 @@
 #include <sys/socket.h> // socket
 #include <netinet/in.h> // internet domain adresses
 
-// --- Prototypes ---
+#define MSG_START "!OK!"
+#define MSG_NOTFOUND "!NF!"
+#define MSG_END "!EN!"
+
+// === Prototypes ===
+void createSocket(int* socketFD, int port);
+void waitForClient(int socketFD, int* clientFD);
 void getArguments(int argc, char** argv, int* port);
+void sendMessage(int socket, char* msg);
+void getUserInfo(int socket, char flag, char* login);
 void errorExit(char* msg);
-void getUserInfo(char flag, char* login);
 
 
-// --- Functions ---
+// === Functions ===
 int main(int argc, char** argv)
 {
+	// --- Processing arguments ---
 	int port;
-
 	getArguments(argc, argv, &port);
 	
-	printf("Port: %d\n", port);
+	
+	// --- Setting up socket ---
+	int socketFD;
+	createSocket(&socketFD, port);
 	
 	
-	///////////////////
-	int sockfd;
-	socklen_t newsockfd, clilen;	// Because of gcc warnings
+	// --- Client connection ---
+	int clientFD; // socklen_t
+	waitForClient(socketFD, &clientFD);
+	
+	
+	// --- Reading messages ---
 	char buffer[256];
-	struct sockaddr_in serv_addr, cli_addr;
-	int  n;
+	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
+	int n;
+	n = read(clientFD, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
+	if(n < 0)
+		errorExit("Couldn't read from socket");
+	
+	int handshakeLength = strlen(buffer);
+	char flag = buffer[handshakeLength-1];
+	buffer[handshakeLength-2] = '\0';
+	getUserInfo(clientFD, flag, buffer);
+
+	return 0;
+}
+
+
+void createSocket(int* socketFD, int port)
+{
+	struct sockaddr_in serv_addr;
 	
 	
 	// --- Creating socket ---
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	*socketFD = socket(AF_INET, SOCK_STREAM, 0);
 
-	if(sockfd < 0)
+	if(*socketFD < 0)
 		errorExit("ERROR: Couldn't create socket");
 	
 	
@@ -55,59 +84,31 @@ int main(int argc, char** argv)
 	
 	
 	// --- Binding the socket ---
-	int binded = bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+	int binded = bind(*socketFD, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
 	if(binded < 0)
 		errorExit("Couldn't bind socket");
-	
-	
-	// --- Client connection ---
-	printf("Waiting for client\n");
-	
-	listen(sockfd,5);	// Listen for connection
-	
-	clilen = sizeof(cli_addr);
-	newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);	// Sleep untill connection
-	if(newsockfd < 0) 
-		errorExit("Couldn't accept connection");
-	
-	printf("Client is connected\n");
-	
-	
-	// --- Reading messages ---
-	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
-	n = read(newsockfd, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
-	if(n < 0)
-		errorExit("Couldn't read from socket");
-	
-	printf("Received: %s", buffer);
-	
-	
-	// --- Send reply ---
-	char* reply = "Roger that!";
-	n = write(newsockfd, reply, strlen(reply));
-	if(n < 0)
-		errorExit("Couldn't write socket");
-	
-	
-	
-	
-	///////////////////////////////////
-
-/*
-	getUserInfo('n', "furdys");
-	getUserInfo('h', "furdys");
-	getUserInfo('l', "sys");
-	getUserInfo('l', NULL);
-*/
-
-	return 0;
 }
 
-void getUserInfo(char flag, char* login)
+void waitForClient(int socketFD, int* clientFD)
+{
+	
+	listen(socketFD, 5);	// Expect client connection
+	
+	struct sockaddr_in clientAddr;
+	socklen_t clientAddrSize = sizeof(clientAddr);
+	
+	*clientFD = accept(socketFD, (struct sockaddr *) &clientAddr, &clientAddrSize);	// Sleep untill connection
+	if(*clientFD < 0) 
+		errorExit("Couldn't accept connection");
+}
+
+void getUserInfo(int socket, char flag, char* login)
 {
 	FILE *file = fopen("/etc/passwd", "r");
 	if(file == NULL)
 		errorExit("Couldn't open file");	
+	
+	sendMessage(socket, MSG_START);
 	
 	int found = 0;	// Found result
 	char line[1024];	// Buffer for reading file
@@ -120,7 +121,8 @@ void getUserInfo(char flag, char* login)
 			while(fgets(line, sizeof(line), file) != NULL)
 			{	
 				char *token = strtok(line, ":");	// Get the first colon
-				printf("%s\n", token);
+				
+				sendMessage(socket, token);
 			}
 		}
 		else
@@ -131,7 +133,7 @@ void getUserInfo(char flag, char* login)
 				if(!strncmp(login, line, strlen(login)))	// Matches the rule
 				{
 					char *token = strtok(line, ":");	// Get the first colon
-					printf("%s\n", token);
+					sendMessage(socket, token);
 				}
 			}			
 		}
@@ -172,7 +174,7 @@ void getUserInfo(char flag, char* login)
 					token = strtok(NULL, ":");
 					
 				// - Print result -
-				printf( "%s\n", token );
+				sendMessage(socket, token);
 			}
 		}		
 	}
@@ -181,8 +183,31 @@ void getUserInfo(char flag, char* login)
 
 	if(found == 0)
 	{
-		// @todo Return not found and print in on client's STDERR
+		sendMessage(socket, MSG_NOTFOUND);
 	}
+	
+	sendMessage(socket, MSG_END);
+}
+
+void sendMessage(int socket, char* msg)
+{
+	int n;
+	if(!strcmp(msg, MSG_END))
+	{
+		n = write(socket, msg, strlen(msg));
+	}
+	else
+	{
+	int msgLength = strlen(msg);
+	char msgSent[msgLength+2];
+	strcpy(msgSent, msg);
+	msgSent[msgLength] = '\n';
+	msgSent[msgLength+1] = '\0';
+	n = write(socket, msgSent, msgLength+1);
+	}
+	
+	if(n < 0)
+		errorExit("Couldn't write to socket");	
 }
 
 
