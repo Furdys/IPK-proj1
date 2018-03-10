@@ -144,7 +144,7 @@ void getUserInfo(int socket, char flag, char* login)
 		int skip; // How many colons should be skipped
 		if(flag == 'n')
 			skip = 4;
-		else if(flag == 'h')
+		else if(flag == 'f')
 			skip = 5;
 		else
 		{

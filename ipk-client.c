@@ -151,16 +151,21 @@ void getArguments(int argc, char** argv, char** host, int* port, char** login, c
 {
 	int c;
 	*flag = '0';
+	int hFlag, pFlag; // Required options
 	
-	while((c = getopt(argc, argv, "h:p:n:f:l:")) != -1)
+	
+	// --- Loading arguments ---
+	while((c = getopt(argc, argv, "h:p:n:f:l")) != -1)
 	{
 		switch(c)
 		{
 			case 'h':
 				*host = optarg;
+				hFlag = 1;
 				break;
 			case 'p':
 				*port = atoi(optarg);
+				pFlag = 1;
 				break;
 			case 'n':
 			case 'f':
@@ -171,16 +176,36 @@ void getArguments(int argc, char** argv, char** host, int* port, char** login, c
 					exit(1);
 				}
 				*flag = c;
-				*login = optarg;
 				break;
 			case '?':
 				errorExit("Invalid arguments");
-				exit(1);
+				break;
 			default:
 				errorExit("Strange error while loading arguments");
-				exit(1);
+				break;
 		}
 	}
+
+
+	// --- Checking arguments ---
+	if(*flag == 'l')	// Optional argument with option -p
+	{
+		if(argc == 7 && optind == 6) // -l <login>
+			*login = argv[optind];
+		else if(argc == 6 && optind == 6) // -l
+			*login = NULL;
+		else
+			errorExit("Invalid arguments usage");
+	}
+	else // Argument count check
+	{
+		if(argc != 7 || optind != 7)
+			errorExit("Invalid arguments usage");
+	}
+	
+	// Required options check
+	if(hFlag != 1 || pFlag != 1 || *flag == '0')
+		errorExit("Invalid arguments usage (Possibly multiple use of one option)");
 }
 
 
