@@ -39,24 +39,27 @@ int main(int argc, char** argv)
 	int socketFD;
 	createSocket(&socketFD, port);
 	
-	
-	// --- Client connection ---
-	int clientFD; // socklen_t
-	waitForClient(socketFD, &clientFD);
-	
-	
-	// --- Reading messages ---
-	char buffer[256];
-	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
-	int n;
-	n = read(clientFD, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
-	if(n < 0)
-		errorExit("Couldn't read from socket");
-	
-	int handshakeLength = strlen(buffer);
-	char flag = buffer[handshakeLength-1];
-	buffer[handshakeLength-2] = '\0';
-	getUserInfo(clientFD, flag, buffer);
+	while(1)
+	{
+		// --- Client connection ---
+		int clientFD; // socklen_t
+		waitForClient(socketFD, &clientFD);
+		
+		
+		// --- Reading messages ---
+		char buffer[256];
+		memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
+		int n;
+		n = read(clientFD, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
+		if(n < 0)
+			errorExit("Couldn't read from socket");
+		
+		
+		int handshakeLength = strlen(buffer);
+		char flag = buffer[handshakeLength-1];
+		buffer[handshakeLength-2] = '\0';
+		getUserInfo(clientFD, flag, buffer);
+	}
 
 	return 0;
 }
@@ -108,24 +111,24 @@ void getUserInfo(int socket, char flag, char* login)
 	if(file == NULL)
 		errorExit("Couldn't open file");	
 	
-	sendMessage(socket, MSG_START);
+	//sendMessage(socket, MSG_START);
 	
 	int found = 0;	// Found result
 	char line[1024];	// Buffer for reading file
 	
 	if(flag == 'l')
 	{
-		if(login == NULL)
+		if(login == NULL)	// No prefix defined
 		{
 			// -- Browsing file --	
 			while(fgets(line, sizeof(line), file) != NULL)
 			{	
 				char *token = strtok(line, ":");	// Get the first colon
-				
 				sendMessage(socket, token);
+				found = 1;
 			}
 		}
-		else
+		else	// Prefix defined
 		{
 			// -- Browsing file --	
 			while(fgets(line, sizeof(line), file) != NULL)
@@ -134,6 +137,7 @@ void getUserInfo(int socket, char flag, char* login)
 				{
 					char *token = strtok(line, ":");	// Get the first colon
 					sendMessage(socket, token);
+					found = 1;
 				}
 			}			
 		}
@@ -181,29 +185,46 @@ void getUserInfo(int socket, char flag, char* login)
 
 	fclose(file);
 
+	
 	if(found == 0)
 	{
 		sendMessage(socket, MSG_NOTFOUND);
 	}
 	
+
+	// --- End connectiom ---
 	sendMessage(socket, MSG_END);
+	close(socket);
 }
 
 void sendMessage(int socket, char* msg)
 {
+	static int handshakeSent = 0;
 	int n;
+	
+	
+	// --- Sending handshake before the first message ---
+	if(handshakeSent == 0 && strcmp(msg, MSG_NOTFOUND))
+	{
+		handshakeSent = 1;
+		sendMessage(socket, MSG_START);
+	}
+	
+	
 	if(!strcmp(msg, MSG_END))
 	{
 		n = write(socket, msg, strlen(msg));
+		handshakeSent = 0;	// Prepare for next client
 	}
 	else
 	{
-	int msgLength = strlen(msg);
-	char msgSent[msgLength+2];
-	strcpy(msgSent, msg);
-	msgSent[msgLength] = '\n';
-	msgSent[msgLength+1] = '\0';
-	n = write(socket, msgSent, msgLength+1);
+		// --- Adding \n at the end of message ---
+		int msgLength = strlen(msg);
+		char msgSent[msgLength+2];
+		strcpy(msgSent, msg);
+		msgSent[msgLength] = '\n';
+		msgSent[msgLength+1] = '\0';
+		n = write(socket, msgSent, msgLength+1);
 	}
 	
 	if(n < 0)

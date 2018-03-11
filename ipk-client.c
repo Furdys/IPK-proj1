@@ -15,8 +15,8 @@
 #include <netinet/in.h> // internet domain adresses
 #include <netdb.h>	// gethostbyname
 
-#define MSG_START "!OK!"
-#define MSG_NOTFOUND "!NF!"
+#define MSG_START "!OK!\n"
+#define MSG_NOTFOUND "!NF!\n"
 #define MSG_END "!EN!"
 
 // === Prototypes ===
@@ -58,54 +58,73 @@ int main(int argc, char** argv)
 	n = write(sockfd, handshake, loginLength+2);	// Send input
 	if(n < 0) 
 		errorExit("Couldn't write to socket");	
-	/*
-	n = write(sockfd, buffer, strlen(buffer));	// Send input
-	if(n < 0) 
-		errorExit("Couldn't write to socket");
-	*/
+
+	
 	
 	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
-	
 	int validHandshake = 0;
 	int validFarewell = 0;
-	
-    while((n = read(sockfd, buffer, sizeof(buffer)-1)) > 0)
-    {		
+	char* bufferPrintable;	// Printable part of the buffer (excluding handshake)
+
+	while((n = read(sockfd, buffer, sizeof(buffer)-1)) > 0)
+    {
+		// --- Checking reading error ---
 		if(n < 0) 
 			errorExit("Couldn't read from socket");
-        
+
+
+		// --- Checking handshake ---
         if(validHandshake == 0)
         {
-			if(strncmp(buffer, MSG_START, strlen(MSG_START)))
-				errorExit("Unexpected handshake from server");
+			int handshakeLength = strlen(MSG_START);
+			
+			if(strncmp(buffer, MSG_START, handshakeLength))	// Check if beggining of the buffer is handshake (!OK!)
+			{
+				if(!strncmp(buffer, MSG_NOTFOUND, strlen(MSG_NOTFOUND)))
+					errorExit("No results to be shown");
+				else
+					errorExit("Unexpected handshake from server");
+			}
 			else
 			{
-				validHandshake = 1;
-				//bufferPrintable = &buffer[strlen(MSG_START)+1]
-			}
-		}
-        
-        buffer[n] = '\0';
-        
-		if(validFarewell == 0)
-		{
-			char* lastRow = strrchr(buffer, '\n');
-			
-			if(!strcmp(&lastRow[1], MSG_END))
-			{
-				validFarewell = 1;
-				lastRow[1] = '\0';
+				//validHandshake = 1;
+				bufferPrintable = &buffer[handshakeLength];
 			}
 		}
 		else
-			validFarewell = 0;
+			buffer[n] = '\0';	// End of received message
         
-        printf("%s",buffer);
-    } 
-    
+        
+		// --- Searching farewell ---
+		if(validFarewell == 0)
+		{		
+			if(!strncmp(&buffer[n-4], MSG_END, strlen(MSG_END)))	// Comapre the end of packet
+			{
+				validFarewell = 1;
+				buffer[n-4] = '\0';	// Shorten the message (earse farewell)
+			}
+		}
+		else
+			validFarewell = 0;	// Received some content after the farewell*/
+		
+		
+		// --- Printing the message ---
+		printf("%s",bufferPrintable);
+		fflush(stdout);
+		
+		
+		// --- Restoring buffer after handshake ---
+		if(validHandshake == 0)
+		{
+			bufferPrintable = buffer;
+			validHandshake = 1;
+		}
+	}
+
+
+	// --- Checking farewell ---
     if(validFarewell == 0)
 		errorExit("Farewell from server not received");
-	
 	
 	return 0;
 }
@@ -176,6 +195,9 @@ void getArguments(int argc, char** argv, char** host, int* port, char** login, c
 					exit(1);
 				}
 				*flag = c;
+				
+				if(c != 'l')
+					*login = optarg; // Save login parameter (option -l is processed later)
 				break;
 			case '?':
 				errorExit("Invalid arguments");
@@ -193,7 +215,7 @@ void getArguments(int argc, char** argv, char** host, int* port, char** login, c
 		if(argc == 7 && optind == 6) // -l <login>
 			*login = argv[optind];
 		else if(argc == 6 && optind == 6) // -l
-			*login = NULL;
+			*login = "";
 		else
 			errorExit("Invalid arguments usage");
 	}
