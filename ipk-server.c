@@ -153,7 +153,8 @@ void getUserInfo(int socket, char flag, char* login)
 		else
 		{
 			fclose(file);
-			errorExit("Invalid flag");
+			fprintf(stderr,"ERROR: Invalid flag received\n");
+			return;
 		}
 		
 		
@@ -251,6 +252,9 @@ void getArguments(int argc, char** argv, int* port)
 				break;
 		}
 	}
+	
+	if(argc != 3 || optind != 3)
+		errorExit("Invalid arguments usage");
 }
 
 

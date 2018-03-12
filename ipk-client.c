@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 			if(strncmp(buffer, MSG_START, handshakeLength))	// Check if beggining of the buffer is handshake (!OK!)
 			{
 				if(!strncmp(buffer, MSG_NOTFOUND, strlen(MSG_NOTFOUND)))
-					errorExit("No results to be shown");
+					errorExit("No result to be shown");
 				else
 					errorExit("Unexpected handshake from server");
 			}
@@ -144,7 +144,9 @@ void connectToServer(int* sockfd, char* host, int port)
 	// --- Resolving host name ---
     server = gethostbyname(host);
     if(server == NULL)
-        errorExit("Couldn't find such host");	
+    {
+        errorExit("Couldn't find such host");
+	}
 	
 	
 	// --- Setting up server adress ---
