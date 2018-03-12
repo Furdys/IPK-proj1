@@ -20,10 +20,11 @@
 
 // === Prototypes ===
 void createSocket(int* socketFD, int port);
-void waitForClient(int socketFD, int* clientFD);
+void waitForClient(int welcomeFD, int* clientFD);
 void getArguments(int argc, char** argv, int* port);
+char waitForQuery(int clientFD, char* buffer);
+void sendUserInfo(int socket, char flag, char* login);
 void sendMessage(int socket, char* msg);
-void getUserInfo(int socket, char flag, char* login);
 void errorExit(char* msg);
 
 
@@ -39,28 +40,26 @@ int main(int argc, char** argv)
 	int socketFD;
 	createSocket(&socketFD, port);
 	
-	while(1)
-	{
-		// --- Client connection ---
-		int clientFD; // socklen_t
-		waitForClient(socketFD, &clientFD);
-		
-		
-		// --- Reading messages ---
-		char buffer[256];
-		memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
-		int n;
-		n = read(clientFD, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
-		if(n < 0)
-			errorExit("Couldn't read from socket");
-		
-		
-		int handshakeLength = strlen(buffer);
-		char flag = buffer[handshakeLength-1];
-		buffer[handshakeLength-2] = '\0';
-		getUserInfo(clientFD, flag, buffer);
-	}
+	
+	// --- Client connection ---
+	int clientFD; // socklen_t
+	waitForClient(socketFD, &clientFD);
+	
+	
+	// --- Reading messages ---
+	char buffer[1024];
+	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
+	
+	char flag;
+	flag = waitForQuery(clientFD, buffer);
 
+	
+	// --- Sending result ---
+	sendUserInfo(clientFD, flag, buffer);
+
+
+	// --- Ending connection ---
+	close(clientFD);
 	return 0;
 }
 
@@ -92,26 +91,55 @@ void createSocket(int* socketFD, int port)
 		errorExit("Couldn't bind socket");
 }
 
-void waitForClient(int socketFD, int* clientFD)
+
+void waitForClient(int welcomeFD, int* clientFD)
 {
 	
-	listen(socketFD, 5);	// Expect client connection
+	listen(welcomeFD, 5);	// Expect client connection
 	
 	struct sockaddr_in clientAddr;
 	socklen_t clientAddrSize = sizeof(clientAddr);
 	
-	*clientFD = accept(socketFD, (struct sockaddr *) &clientAddr, &clientAddrSize);	// Sleep untill connection
-	if(*clientFD < 0) 
-		errorExit("Couldn't accept connection");
+	while(1)
+	{
+		*clientFD = accept(welcomeFD, (struct sockaddr *) &clientAddr, &clientAddrSize);	// Sleep untill connection
+		if(*clientFD < 0) 
+			continue;	// Ignore unsuccessful connection
+			
+		int pid = fork();
+		if(pid < 0) 
+			errorExit("Couldn't fork the process");
+			
+		if(pid == 0) // Child
+		{
+			close(welcomeFD);	// Won't accept new connection, just deal with this one
+			return; // End endless loop
+		}
+		else // Parent	
+		{
+			close(*clientFD);	// Won't work with this client, just waits for new one
+		}
+	}
 }
 
-void getUserInfo(int socket, char flag, char* login)
+char waitForQuery(int clientFD, char* buffer)
+{
+	int n;
+	n = read(clientFD, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
+	if(n < 0)
+		errorExit("Couldn't read from socket");
+	int handshakeLength = strlen(buffer);
+	
+	buffer[handshakeLength-2] = '\0';	// Earse flag
+	
+	return buffer[handshakeLength-1];	// Return flag
+}
+
+void sendUserInfo(int socket, char flag, char* login)
 {
 	FILE *file = fopen("/etc/passwd", "r");
 	if(file == NULL)
 		errorExit("Couldn't open file");	
-	
-	//sendMessage(socket, MSG_START);
 	
 	int found = 0;	// Found result
 	char line[1024];	// Buffer for reading file
@@ -190,13 +218,13 @@ void getUserInfo(int socket, char flag, char* login)
 	if(found == 0)
 	{
 		sendMessage(socket, MSG_NOTFOUND);
-	}
-	
+	}	
 
 	// --- End connectiom ---
 	sendMessage(socket, MSG_END);
 	close(socket);
 }
+
 
 void sendMessage(int socket, char* msg)
 {

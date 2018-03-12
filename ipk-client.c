@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 	
 	
 	// --- Communicating with server ---
-	char buffer[256];
+	char buffer[1024];
 	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
 	
 	
