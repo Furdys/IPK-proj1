@@ -1,0 +1,22 @@
+Prelozeni programu
+==================
+Program lze prelozit pomoci prikazu make
+
+
+Spusteni programu
+=================
+Konvence spusteni klientske aplikace:
+./ipk-client -h host -p port [-n|-f|-l] login
+
+Konvence spusteni servrove aplikace:
+./ipk-server -p port  
+
+
+Autor
+=====
+Jiri Furda (xfurda00)
+
+
+=========================================================
+Podrobnejsi informace naleznete v souboru dokumentace.pdf
+=========================================================

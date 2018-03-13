@@ -21,6 +21,8 @@
 
 // === Prototypes ===
 void connectToServer(int* sockfd, char* host, int port);
+void sendQuery(int serverFD, char* login, char flag);
+void receiveMessage(int serverFD);
 void getArguments(int argc, char** argv, char** host, int* port, char** login, char* flag);
 void errorExit(char* msg);
 
@@ -37,15 +39,56 @@ int main(int argc, char** argv)
 
 	
 	// --- Connecting to server ---
-	int sockfd;
-	connectToServer(&sockfd, host, port);
+	int serverFD;
+	connectToServer(&serverFD, host, port);
 	
 	
 	// --- Communicating with server ---
-	char buffer[1024];
-	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
+	sendQuery(serverFD, login, flag);
+
+
+	receiveMessage(serverFD);
+	
+	return 0;
+}
+
+void connectToServer(int* sockfd, char* host, int port)
+{
+    struct sockaddr_in serv_addr;
+    struct hostent *server;	
+	
+	// --- Creating socket ---
+	*sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	
+	if(*sockfd < 0) 
+        errorExit("Couldn't create socket");	
+
+		
+	// --- Resolving host name ---
+    server = gethostbyname(host);
+    if(server == NULL)
+    {
+        errorExit("Couldn't find such host");
+	}
 	
 	
+	// --- Setting up server adress ---
+	memset(&serv_addr, '\0', sizeof(serv_addr));	// Earse adress buffer
+	
+    serv_addr.sin_family = AF_INET;	// Symbolic constant
+    serv_addr.sin_port = htons(port);	// Convert to network byte order
+    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);	// Set server ip
+    
+    
+    // --- Connecting to server ---
+    int connected = connect(*sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+	if(connected < 0) 
+        errorExit("Couldn't connect");
+}
+
+void sendQuery(int serverFD, char* login, char flag)
+{
+	// --- Join login and flag ---
 	int loginLength = strlen(login);
 	char handshake[loginLength+3];
 	strcpy(handshake, login);
@@ -54,19 +97,23 @@ int main(int argc, char** argv)
 	handshake[loginLength+2] = '\0';
 	
 	
+	// --- Send query ---
 	int n;
-	n = write(sockfd, handshake, loginLength+2);	// Send input
+	n = write(serverFD, handshake, loginLength+2);
 	if(n < 0) 
 		errorExit("Couldn't write to socket");	
+}		
 
-	
-	
+void receiveMessage(int serverFD)
+{
+	char buffer[1024];	
 	memset(buffer, '\0', sizeof(buffer)); 	// Earse buffer
+	int n;
 	int validHandshake = 0;
 	int validFarewell = 0;
 	char* bufferPrintable;	// Printable part of the buffer (excluding handshake)
 
-	while((n = read(sockfd, buffer, sizeof(buffer)-1)) > 0)
+	while((n = read(serverFD, buffer, sizeof(buffer)-1)) > 0)
     {
 		// --- Checking reading error ---
 		if(n < 0) 
@@ -125,49 +172,8 @@ int main(int argc, char** argv)
 	// --- Checking farewell ---
     if(validFarewell == 0)
 		errorExit("Farewell from server not received");
-	
-	return 0;
 }
-
-void connectToServer(int* sockfd, char* host, int port)
-{
-    struct sockaddr_in serv_addr;
-    struct hostent *server;	
-	
-	// --- Creating socket ---
-	*sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	
-	if(*sockfd < 0) 
-        errorExit("Couldn't create socket");	
-
 		
-	// --- Resolving host name ---
-    server = gethostbyname(host);
-    if(server == NULL)
-    {
-        errorExit("Couldn't find such host");
-	}
-	
-	
-	// --- Setting up server adress ---
-	memset(&serv_addr, '\0', sizeof(serv_addr));	// Earse adress buffer
-	
-    serv_addr.sin_family = AF_INET;	// Symbolic constant
-    serv_addr.sin_port = htons(port);	// Convert to network byte order
-    memcpy((char *)&serv_addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);	// Set server ip
-    
-    
-    // --- Connecting to server ---
-    int connected = connect(*sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-	if(connected < 0) 
-        errorExit("Couldn't connect");
-}
-
-
-/**
- *
- * @todo "./ipk-client -h host -p port -l" should be legit
- */
 void getArguments(int argc, char** argv, char** host, int* port, char** login, char* flag)
 {
 	int c;
