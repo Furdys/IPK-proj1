@@ -124,12 +124,21 @@ void waitForClient(int welcomeFD, int* clientFD)
 
 char waitForQuery(int clientFD, char* buffer)
 {
-	int n;
-	n = read(clientFD, buffer, sizeof(buffer)-1);	// Sleep untill message is sent
-	if(n < 0)
-		errorExit("Couldn't read from socket");
-	int handshakeLength = strlen(buffer);
+	char internalBuffer[1024];
 	
+	do
+	{
+		int n;
+		n = read(clientFD,internalBuffer, sizeof(internalBuffer)-1); // Sleep untill message is sent
+		if(n < 0)
+			errorExit("Couldn't read from socket");
+		
+		internalBuffer[n] = '\0';	// End of received message
+		strncpy(&buffer[strlen(buffer)], internalBuffer, n);
+	}
+	while(strrchr(internalBuffer, ':') == NULL);
+	
+	int handshakeLength = strlen(buffer);
 	buffer[handshakeLength-2] = '\0';	// Earse flag
 	
 	return buffer[handshakeLength-1];	// Return flag
