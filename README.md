@@ -29,16 +29,19 @@ This is really easily [patched](https://github.com/Furdys/IPK-proj1/commit/a420e
 ipk-server -p 51515
 ```
 **Info (2 points)**
+```
 ipk-client -h localhost -p 51515 -n rysavy
 ipk-client -h localhost -p 51515 -n biswas
 ipk-client -h localhost -p 51515 -n xzwier00
 ipk-client -h localhost -p 51515 -n_dhcp
+```
 **Folder (2 points)**
+```
 ipk-client -h localhost -p 51515 -f rysavy
 ipk-client -h localhost -p 51515 -f qpovolny
 ipk-client -h localhost -p 51515 -f zizkaj
 ipk-client -h localhost -p 51515 -f avahi 
-
+```
 **List (2 points)**
 ```
 ipk-client -h localhost -p 51515 -l rysavy
