@@ -9,15 +9,15 @@ Subject: **Computer Communications and Networks (IPK)**
 * Overall: **11/20**
 * [Corresponding version](https://github.com/Furdys/IPK-proj1/tree/3393dc4b3324ec0f797b8061c7f72f13bdf533c6)
 
-| Test   | Score |
-| ------ | ----- |
-| Info   | 0     |
-| Folder | 0     |
-| List   | 0     |
-| NF01   | 0     |
-| NF02   | 0     |
-| PL01   | 2     |
-| PL02   | 2     |
+| Test   | Score | Max |
+| ------ | ----- | --- |
+| Info   | 0     | 2   |
+| Folder | 0     | 2   |
+| List   | 0     | 2   |
+| NF01   | 0     | 1   |
+| NF02   | 0     | 1   |
+| PL01   | 2     | 2   |
+| PL02   | 2     | 2   |
 
 ## My commentary
 First message (query from client) wasn't expected to be spliced into two or more messages therefore every long query will result in fault.
