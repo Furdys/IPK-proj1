@@ -21,7 +21,7 @@ Subject: **Computer Communications and Networks (IPK)**
 
 ## My commentary
 First message (query from client) wasn't expected to be spliced into two or more messages therefore every long query will result in fault.
-This is really easily [patched](https://github.com/Furdys/IPK-proj1/commit/a420e3132118a00cc0f8592d6e0c4e92af2c6ff8#diff-aafaa3423d0a1f1dad48ca282ddd666f) with just one more cycle but it wasn't allowed.
+This can be really easily [patched](https://github.com/Furdys/IPK-proj1/commit/a420e3132118a00cc0f8592d6e0c4e92af2c6ff8#diff-aafaa3423d0a1f1dad48ca282ddd666f) with just one more cycle but it wasn't accepted, therefore the score is so low.
 
 ## Tests
 **Server Start**
